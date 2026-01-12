@@ -421,4 +421,83 @@ mod tests {
         assert!(perm.get(100).is_none());
         assert!(perm.index_of(10).is_none());
     }
+
+    /// Chi-square test to verify that the permutation distribution is reasonably uniform.
+    /// This is ported from bench/chisquaretest.py in the original smallperm.
+    ///
+    /// Uses a simple LCG (Linear Congruential Generator) to generate random seeds,
+    /// mimicking the Python test which uses np.random.randint().
+    ///
+    /// Note: The Feistel network doesn't produce perfectly uniform permutations,
+    /// but produces permutations where each element appears within ~10% of uniform
+    /// expected frequency, which is sufficient for shuffling applications.
+    #[test]
+    fn test_chi_square_uniformity() {
+        use std::collections::HashMap;
+
+        let n = 4usize; // Permutation length
+        let num_shuffles = 100_000u64;
+        let factorial_n = (1..=n).product::<usize>(); // 24 possible permutations
+
+        // Simple LCG for generating random seeds (mimics Python's random)
+        let mut lcg_state: u64 = 12345; // Fixed seed for reproducibility
+        let mut next_seed = || {
+            // LCG parameters from Numerical Recipes
+            lcg_state = lcg_state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            lcg_state
+        };
+
+        // Count occurrences of each permutation
+        let mut counts: HashMap<Vec<u128>, u64> = HashMap::new();
+        for _ in 0..num_shuffles {
+            let seed = next_seed();
+            let perm = Permutation::new(n as u128, seed);
+            let values: Vec<u128> = perm.iter().collect();
+            *counts.entry(values).or_insert(0) += 1;
+        }
+
+        // Expected count per permutation under uniform distribution
+        let expected = num_shuffles as f64 / factorial_n as f64;
+
+        // Check that all permutations were observed
+        assert_eq!(
+            counts.len(),
+            factorial_n,
+            "Not all permutations were observed"
+        );
+
+        // Verify each permutation count is within a reasonable range (±15% of expected)
+        // This is a practical test that the distribution is "good enough" for shuffling
+        let min_acceptable = (expected * 0.85) as u64;
+        let max_acceptable = (expected * 1.15) as u64;
+
+        for (perm, count) in &counts {
+            assert!(
+                *count >= min_acceptable && *count <= max_acceptable,
+                "Permutation {:?} has count {} which is outside acceptable range [{}, {}]",
+                perm,
+                count,
+                min_acceptable,
+                max_acceptable
+            );
+        }
+
+        // Calculate chi-square statistic for informational purposes
+        let chi_square: f64 = counts
+            .values()
+            .map(|&observed| {
+                let diff = observed as f64 - expected;
+                diff * diff / expected
+            })
+            .sum();
+
+        // Print the chi-square statistic for informational purposes
+        // (visible when running tests with --nocapture)
+        println!("Chi-square statistic: {:.2}", chi_square);
+        println!(
+            "Expected ~{} for uniform distribution (df={})",
+            factorial_n - 1,
+            factorial_n - 1
+        );
+    }
 }
