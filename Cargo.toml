@@ -1,0 +1,21 @@
+[package]
+name = "smallperm"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance pseudo-random permutations using Feistel networks with O(1) memory and O(1) time per element"
+license = "Apache-2.0"
+repository = "https://github.com/GauthamGoli/smallperm-rs"
+keywords = ["permutation", "shuffle", "random", "feistel", "ml"]
+categories = ["algorithms", "data-structures"]
+
+[lib]
+name = "smallperm"
+crate-type = ["lib"]
+
+[dependencies]
+rustc-hash = "1.1.0"
+
+[dev-dependencies]
+ahash = "0.8.11"
+quickcheck = "1"
+quickcheck_macros = "1"
